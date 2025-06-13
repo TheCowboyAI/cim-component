@@ -1,0 +1,14 @@
+[package]
+name = "cim-component"
+version = "0.1.0"
+edition = "2021"
+authors = ["CIM Team"]
+description = "Component trait and storage for the Composable Information Machine"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
