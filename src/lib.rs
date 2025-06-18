@@ -50,8 +50,8 @@ pub enum ComponentError {
 impl std::fmt::Display for ComponentError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ComponentError::AlreadyExists(name) => write!(f, "Component already exists: {}", name),
-            ComponentError::NotFound(name) => write!(f, "Component not found: {}", name),
+            ComponentError::AlreadyExists(name) => write!(f, "Component already exists: {name}"),
+            ComponentError::NotFound(name) => write!(f, "Component not found: {name}"),
         }
     }
 }
