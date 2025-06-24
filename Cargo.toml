@@ -2,9 +2,12 @@
 name = "cim-component"
 version = "0.3.0"
 edition = "2021"
-authors = ["CIM Team"]
-description = "Component trait and storage for the Composable Information Machine"
-license = "MIT OR Apache-2.0"
+authors = ["The CowboyAI Team"]
+description = "Component trait for attaching data to domain objects"
+license = "MIT"
+repository = "https://github.com/thecowboyai/cim"
+keywords = ["component", "ecs", "entity", "architecture"]
+categories = ["data-structures", "game-development"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -12,3 +15,15 @@ uuid = { version = "1.11", features = ["v4", "serde"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
+
+[[example]]
+name = "basic_usage"
+path = "examples/basic_usage.rs"
+
+[[example]]
+name = "architecture_usage"
+path = "examples/architecture_usage.rs"
+
+[[example]]
+name = "advanced_patterns"
+path = "examples/advanced_patterns.rs"
