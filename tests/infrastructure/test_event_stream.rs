@@ -93,7 +93,7 @@ impl MockEventStore {
             let (_, expected_prev_cid, _) = &self.events[i - 1];
             
             if prev_cid.as_ref() != Some(expected_prev_cid) {
-                return Err(format!("Chain broken at position {}", i));
+                return Err(format!("Chain broken at position {i}"));
             }
         }
 
@@ -221,7 +221,7 @@ mod tests {
         // Add events for different aggregates
         for i in 1..=3 {
             let event = MockEvent {
-                event_id: format!("evt_{}", i),
+                event_id: format!("evt_{i}"),
                 aggregate_id: "agg_1".to_string(),
                 sequence: i as u64,
                 data: vec![i as u8],

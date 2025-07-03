@@ -131,7 +131,7 @@ impl World {
         component: C,
     ) -> ComponentResult<()> {
         let entity = self.entities.get_mut(&entity_id)
-            .ok_or_else(|| ComponentError::NotFound(format!("Entity {}", entity_id)))?;
+            .ok_or_else(|| ComponentError::NotFound(format!("Entity {entity_id}")))?;
 
         let type_id = TypeId::of::<C>();
         
@@ -215,11 +215,10 @@ fn movement_system(world: &World) {
 
     let entities = world.query_components_2::<Position, Velocity>();
     
-    println!("Movement System: Processing {} entities", entities.len());
+    println!("Movement System: Processing {entities.len(} entities"));
     
     for (id, pos, vel) in entities {
-        println!("  Entity {}: Moving from ({:.2}, {:.2}) by ({:.2}, {:.2})",
-            id, pos.x, pos.y, vel.dx, vel.dy);
+        println!("  Entity {id}: Moving from ({:.2}, {:.2}) by ({:.2}, {:.2})", pos.x, pos.y, vel.dx, vel.dy);
         // In a real system, we'd update the position here
     }
 }
@@ -228,10 +227,10 @@ fn movement_system(world: &World) {
 fn hierarchy_system(world: &World) {
     let parents = world.query_component::<Parent>();
     
-    println!("Hierarchy System: Found {} child entities", parents.len());
+    println!("Hierarchy System: Found {parents.len(} child entities"));
     
     for (child_id, parent) in parents {
-        println!("  Entity {} is a child of Entity {}", child_id, parent.entity_id);
+        println!("  Entity {child_id} is a child of Entity {parent.entity_id}");
     }
 }
 
@@ -340,12 +339,12 @@ fn main() {
             world.add_component(player_id, temp).unwrap();
             println!("  Added valid temperature to player");
         }
-        Err(e) => println!("  Error: {}", e),
+        Err(e) => println!("  Error: {e}"),
     }
     
     match Temperature::new(-300.0) {
         Ok(_) => println!("  Should not reach here"),
-        Err(e) => println!("  Validation prevented invalid temperature: {}", e),
+        Err(e) => println!("  Validation prevented invalid temperature: {e}"),
     }
     
     // 4. Event-driven example
@@ -355,7 +354,7 @@ fn main() {
     // Register event handler
     event_world.event_handlers.insert("Position", Box::new(|event| {
         if let ComponentEvent::Added { entity_id, .. } = event {
-            println!("  Position component added to entity {}", entity_id);
+            println!("  Position component added to entity {entity_id}");
         }
     }));
     

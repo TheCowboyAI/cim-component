@@ -216,11 +216,11 @@ fn example_graph_node() {
 
     // Access components
     if let Some(pos) = node.get_component::<Position3D>() {
-        println!("   Node position: ({}, {}, {})", pos.x, pos.y, pos.z);
+        println!("   Node position: ({pos.x}, {pos.y}, {pos.z})");
     }
 
     if let Some(meta) = node.get_component::<Metadata>() {
-        println!("   Node name: {}", meta.name);
+        println!("   Node name: {meta.name}");
         println!("   Tags: {:?}\n", meta.tags);
     }
 }
@@ -247,7 +247,7 @@ fn example_identity_entity() {
     }).unwrap();
 
     if let Some(identity) = user.get_component::<IdentityInfo>() {
-        println!("   User ID: {}", identity.user_id);
+        println!("   User ID: {identity.user_id}");
         println!("   Roles: {:?}", identity.roles);
         println!("   Permissions: {:?}\n", identity.permissions);
     }
@@ -279,9 +279,9 @@ fn example_cross_domain_composition() {
     // - Conceptual domain (ConceptualCoordinates)
     // - Common metadata
 
-    println!("   Entity has Position3D: {}", entity.components.has::<Position3D>());
-    println!("   Entity has ConceptualCoordinates: {}", entity.components.has::<ConceptualCoordinates>());
-    println!("   Entity has Metadata: {}\n", entity.components.has::<Metadata>());
+    println!("   Entity has Position3D: {entity.components.has::<Position3D>(}"));
+    println!("   Entity has ConceptualCoordinates: {entity.components.has::<ConceptualCoordinates>(}"));
+    println!("   Entity has Metadata: {entity.components.has::<Metadata>(}\n"));
 }
 
 fn example_component_queries() {
@@ -328,7 +328,7 @@ fn example_component_queries() {
         .filter(|e| e.components.has::<Position3D>() && e.components.has::<Metadata>())
         .collect();
 
-    println!("   Entities with Position3D and Metadata: {}", with_pos_and_meta.len());
+    println!("   Entities with Position3D and Metadata: {with_pos_and_meta.len(}"));
 
     // Query: Find entities with ConceptualCoordinates
     let with_conceptual: Vec<_> = entities
@@ -336,14 +336,13 @@ fn example_component_queries() {
         .filter(|e| e.components.has::<ConceptualCoordinates>())
         .collect();
 
-    println!("   Entities with ConceptualCoordinates: {}", with_conceptual.len());
+    println!("   Entities with ConceptualCoordinates: {with_conceptual.len(}"));
 
     // Process entities with specific components
     for entity in &entities {
         if let Some(meta) = entity.get_component::<Metadata>() {
             if let Some(pos) = entity.get_component::<Position3D>() {
-                println!("   Entity '{}' at position ({}, {}, {})", 
-                    meta.name, pos.x, pos.y, pos.z);
+                println!("   Entity '{meta.name}' at position ({pos.x}, {pos.y}, {pos.z})");
             }
         }
     }

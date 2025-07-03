@@ -124,29 +124,29 @@ fn main() {
 
     // Access components
     if let Some(label) = player.get_component::<Label>() {
-        println!("Player name: {}", label.text);
+        println!("Player name: {label.text}");
     }
 
     if let Some(health) = player.get_component::<Health>() {
-        println!("Health: {}/{}", health.current, health.max);
+        println!("Health: {health.current}/{health.max}");
     }
 
     if let Some(pos) = player.get_component::<Position>() {
-        println!("Position: ({}, {})", pos.x, pos.y);
+        println!("Position: ({pos.x}, {pos.y})");
     }
 
     // Check for components
     println!("\nComponent checks:");
-    println!("Has Label: {}", player.has_component::<Label>());
-    println!("Has Health: {}", player.has_component::<Health>());
-    println!("Has Position: {}", player.has_component::<Position>());
+    println!("Has Label: {player.has_component::<Label>(}"));
+    println!("Has Health: {player.has_component::<Health>(}"));
+    println!("Has Position: {player.has_component::<Position>(}"));
 
     // Error handling
     println!("\nError handling:");
     match player.add_component(Label { text: "Duplicate".to_string() }) {
         Ok(_) => println!("Added duplicate label (shouldn't happen)"),
         Err(ComponentError::AlreadyExists(name)) => {
-            println!("Cannot add duplicate component: {}", name);
+            println!("Cannot add duplicate component: {name}");
         }
         Err(_) => println!("Other error"),
     }
@@ -169,7 +169,7 @@ fn main() {
     for obj in &objects {
         if let Some(label) = obj.get_component::<Label>() {
             if let Some(health) = obj.get_component::<Health>() {
-                println!("  {} has {} health", label.text, health.current);
+                println!("  {label.text} has {health.current} health");
             }
         }
     }

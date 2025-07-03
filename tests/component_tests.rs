@@ -1,15 +1,21 @@
 //! Tests for cim-component functionality aligned with user stories
 
-use cim_component::{Component, ComponentError, component_type_id};
+use cim_component::{component_type_id, Component, ComponentError};
 use std::any::{Any, TypeId};
 
 #[derive(Debug, Clone, PartialEq)]
 struct TestComponent(String);
 
 impl Component for TestComponent {
-    fn as_any(&self) -> &dyn Any { self }
-    fn clone_box(&self) -> Box<dyn Component> { Box::new(self.clone()) }
-    fn type_name(&self) -> &'static str { "TestComponent" }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn Component> {
+        Box::new(self.clone())
+    }
+    fn type_name(&self) -> &'static str {
+        "TestComponent"
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,9 +26,15 @@ struct Position3D {
 }
 
 impl Component for Position3D {
-    fn as_any(&self) -> &dyn Any { self }
-    fn clone_box(&self) -> Box<dyn Component> { Box::new(self.clone()) }
-    fn type_name(&self) -> &'static str { "Position3D" }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_box(&self) -> Box<dyn Component> {
+        Box::new(self.clone())
+    }
+    fn type_name(&self) -> &'static str {
+        "Position3D"
+    }
 }
 
 /// User Story: F1 - Extensible Domain Objects
@@ -106,7 +118,11 @@ fn test_component_type_safety_and_cloning() {
 fn test_component_discovery_and_type_identification() {
     // Given different component types
     let text_comp = TestComponent("label".to_string());
-    let pos_comp = Position3D { x: 1.0, y: 2.0, z: 3.0 };
+    let pos_comp = Position3D {
+        x: 1.0,
+        y: 2.0,
+        z: 3.0,
+    };
 
     // When I get their type names
     let text_name = text_comp.type_name();
