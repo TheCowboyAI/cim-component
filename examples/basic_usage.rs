@@ -1,3 +1,5 @@
+// Copyright 2025 Cowboy AI, LLC.
+
 //! Basic usage example for cim-component without external dependencies
 //!
 //! This example shows the fundamental patterns of the Component trait

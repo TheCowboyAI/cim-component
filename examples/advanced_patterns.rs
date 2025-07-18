@@ -1,3 +1,5 @@
+// Copyright 2025 Cowboy AI, LLC.
+
 //! Advanced patterns for using cim-component
 //!
 //! This example demonstrates more sophisticated patterns including:

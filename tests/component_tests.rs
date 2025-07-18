@@ -1,3 +1,5 @@
+// Copyright 2025 Cowboy AI, LLC.
+
 //! Tests for cim-component functionality aligned with user stories
 
 use cim_component::{component_type_id, Component, ComponentError};

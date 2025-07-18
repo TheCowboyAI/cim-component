@@ -1,3 +1,5 @@
+// Copyright 2025 Cowboy AI, LLC.
+
 //! Infrastructure Layer 1.1: NATS JetStream Connection Tests
 //! 
 //! User Story: As a system, I need to connect to NATS JetStream and create event streams

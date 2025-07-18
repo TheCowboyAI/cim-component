@@ -1,3 +1,5 @@
+// Copyright 2025 Cowboy AI, LLC.
+
 //! Example demonstrating how cim-component is used in the wider CIM architecture
 //! 
 //! This example shows the expected usage patterns without taking on any dependencies.
