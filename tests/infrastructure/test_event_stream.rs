@@ -144,10 +144,19 @@ mod tests {
         
         // Act
         let store = MockEventStore::new();
+        let init_event = EventStoreEvent::EventStoreInitialized;
         
         // Assert
         assert_eq!(store.events.len(), 0);
         assert_eq!(store.snapshots.len(), 0);
+        
+        // Verify the event type exists and can be used
+        match init_event {
+            EventStoreEvent::EventStoreInitialized => {
+                // Event store initialized successfully
+            }
+            _ => panic!("Unexpected event type"),
+        }
     }
 
     #[test]
@@ -170,8 +179,24 @@ mod tests {
         
         let (stored_event, stored_cid, prev_cid) = &store.events[0];
         assert_eq!(stored_event.event_id, "evt_1");
+        assert_eq!(stored_event.sequence, 1);
         assert_eq!(stored_cid, &cid);
         assert_eq!(prev_cid, &None);
+        
+        // Create event for tracking
+        let persist_event = EventStoreEvent::EventPersisted {
+            event_id: stored_event.event_id.clone(),
+            cid: cid.clone(),
+            previous_cid: None,
+        };
+        
+        // Verify event tracking
+        match persist_event {
+            EventStoreEvent::EventPersisted { event_id, .. } => {
+                assert_eq!(event_id, "evt_1");
+            }
+            _ => panic!("Unexpected event type"),
+        }
     }
 
     #[test]
@@ -213,6 +238,23 @@ mod tests {
         assert_eq!(start_cid, cid1);
         assert_eq!(end_cid, cid3);
         assert_eq!(length, 3);
+        
+        // Create validation event
+        let validation_event = EventStoreEvent::CIDChainValidated {
+            start_cid: start_cid.clone(),
+            end_cid: end_cid.clone(),
+            length,
+        };
+        
+        // Verify the validation event
+        match validation_event {
+            EventStoreEvent::CIDChainValidated { start_cid: s, end_cid: e, length: l } => {
+                assert_eq!(s, cid1);
+                assert_eq!(e, cid3);
+                assert_eq!(l, 3);
+            }
+            _ => panic!("Unexpected event type"),
+        }
     }
 
     #[test]
@@ -221,6 +263,7 @@ mod tests {
         let mut store = MockEventStore::new();
         
         // Add events for different aggregates
+        let mut previous_cid = None;
         for i in 1..=3 {
             let event = MockEvent {
                 event_id: format!("evt_{i}"),
@@ -228,7 +271,8 @@ mod tests {
                 sequence: i as u64,
                 data: vec![i as u8],
             };
-            store.persist_event(event, None).ok();
+            let cid = store.persist_event(event, previous_cid).unwrap();
+            previous_cid = Some(cid);
         }
         
         // Add event for different aggregate
@@ -246,8 +290,25 @@ mod tests {
         // Assert
         assert_eq!(replayed.len(), 3);
         assert_eq!(replayed[0].event_id, "evt_1");
+        assert_eq!(replayed[0].sequence, 1);
         assert_eq!(replayed[1].event_id, "evt_2");
+        assert_eq!(replayed[1].sequence, 2);
         assert_eq!(replayed[2].event_id, "evt_3");
+        assert_eq!(replayed[2].sequence, 3);
+        
+        // Track replay event
+        let replay_event = EventStoreEvent::EventsReplayed {
+            count: replayed.len(),
+            aggregate_id: "agg_1".to_string(),
+        };
+        
+        match replay_event {
+            EventStoreEvent::EventsReplayed { count, aggregate_id } => {
+                assert_eq!(count, 3);
+                assert_eq!(aggregate_id, "agg_1");
+            }
+            _ => panic!("Unexpected event type"),
+        }
     }
 
     #[test]

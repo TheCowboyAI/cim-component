@@ -108,6 +108,7 @@ fn main() {
 
     // Create a game object
     let mut player = GameObject::new(1);
+    println!("Created player with ID: {}", player.id);
     
     // Add components
     player.add_component(Label {
@@ -126,35 +127,36 @@ fn main() {
 
     // Access components
     if let Some(label) = player.get_component::<Label>() {
-        println!("Player name: {label.text}");
+        println!("Player name: {}", label.text);
     }
 
     if let Some(health) = player.get_component::<Health>() {
-        println!("Health: {health.current}/{health.max}");
+        println!("Health: {}/{}", health.current, health.max);
     }
 
     if let Some(pos) = player.get_component::<Position>() {
-        println!("Position: ({pos.x}, {pos.y})");
+        println!("Position: ({}, {})", pos.x, pos.y);
     }
 
     // Check for components
     println!("\nComponent checks:");
-    println!("Has Label: {player.has_component::<Label>(}"));
-    println!("Has Health: {player.has_component::<Health>(}"));
-    println!("Has Position: {player.has_component::<Position>(}"));
+    println!("Has Label: {}", player.has_component::<Label>());
+    println!("Has Health: {}", player.has_component::<Health>());
+    println!("Has Position: {}", player.has_component::<Position>());
 
     // Error handling
     println!("\nError handling:");
     match player.add_component(Label { text: "Duplicate".to_string() }) {
         Ok(_) => println!("Added duplicate label (shouldn't happen)"),
         Err(ComponentError::AlreadyExists(name)) => {
-            println!("Cannot add duplicate component: {name}");
+            println!("Cannot add duplicate component: {}", name);
         }
         Err(_) => println!("Other error"),
     }
 
     // Create another object with different components
     let mut enemy = GameObject::new(2);
+    println!("\nCreated enemy with ID: {}", enemy.id);
     enemy.add_component(Label {
         text: "Goblin".to_string(),
     }).unwrap();
@@ -171,7 +173,7 @@ fn main() {
     for obj in &objects {
         if let Some(label) = obj.get_component::<Label>() {
             if let Some(health) = obj.get_component::<Health>() {
-                println!("  {label.text} has {health.current} health");
+                println!("  [ID: {}] {} has {} health", obj.id, label.text, health.current);
             }
         }
     }

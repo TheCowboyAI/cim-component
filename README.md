@@ -1,143 +1,314 @@
 # CIM Component
 
-The foundational component trait for the Composable Information Machine (CIM). This crate provides the core abstraction for attaching data to domain objects in a type-safe, composable manner.
+A foundational type-erased component system for the Content Identity Matrix (CIM), providing the building blocks for Entity Component System (ECS) patterns throughout the CIM architecture.
 
 ## Overview
 
-`cim-component` defines the fundamental `Component` trait that enables:
-- Type-safe component storage and retrieval
-- Runtime component composition
-- Cross-domain data attachment
-- Foundation for Entity-Component-System (ECS) architectures
+The `cim-component` module provides a flexible, type-erased component system that serves as the foundation for CIM's component-based architecture. It enables storing heterogeneous components without compile-time type knowledge while maintaining type safety and performance.
+
+## Architecture
+
+### Component System Overview
+
+```mermaid
+graph TB
+    subgraph "Type-Erased Component System"
+        Component[Component Trait]
+        Storage[Component Storage]
+        Registry[Type Registry]
+        
+        Component --> |implements| ConcreteA[Concrete Component A]
+        Component --> |implements| ConcreteB[Concrete Component B]
+        Component --> |implements| ConcreteC[Concrete Component C]
+        
+        Storage --> |stores| Component
+        Registry --> |tracks| Component
+    end
+    
+    subgraph "Storage Backends"
+        Storage --> Memory[In-Memory Storage]
+        Storage --> IPLD[IPLD Storage]
+        Storage --> Custom[Custom Backend]
+    end
+    
+    style Component fill:#f9f,stroke:#333,stroke-width:4px
+    style Storage fill:#bbf,stroke:#333,stroke-width:2px
+    style Registry fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### Component Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant App as Application
+    participant Comp as Component
+    participant Storage as Storage Backend
+    participant Registry as Type Registry
+    
+    App->>+Comp: Create Component
+    Comp->>Registry: Register Type
+    App->>Storage: Store Component
+    Storage->>Comp: Serialize
+    Storage->>Storage: Persist
+    
+    Note over Storage: Later...
+    
+    App->>Storage: Retrieve Component
+    Storage->>Registry: Lookup Type
+    Registry-->>Storage: Type Info
+    Storage->>Comp: Deserialize
+    Storage-->>App: Component Instance
+```
+
+### Integration with CIM Modules
+
+```mermaid
+graph LR
+    subgraph "Core Modules"
+        Component[cim-component]
+        IPLD[cim-ipld]
+        Domain[cim-domain]
+    end
+    
+    subgraph "Domain Modules"
+        Person[cim-domain-person]
+        Org[cim-domain-organization]
+        Graph[cim-contextgraph]
+    end
+    
+    Component --> |foundation for| Domain
+    Component --> |storage via| IPLD
+    Domain --> |used by| Person
+    Domain --> |used by| Org
+    Domain --> |used by| Graph
+    
+    style Component fill:#f96,stroke:#333,stroke-width:4px
+    style IPLD fill:#9cf,stroke:#333,stroke-width:2px
+    style Domain fill:#fc9,stroke:#333,stroke-width:2px
+```
 
 ## Features
 
-- **Zero Dependencies**: Pure Rust implementation with no external dependencies
-- **Type Safety**: Compile-time type checking with runtime flexibility
-- **Cloneable**: All components can be cloned for easy duplication
-- **Serializable**: Built-in support for serialization via Serde
-- **Error Handling**: Comprehensive error types for component operations
+- **Type Erasure**: Store components of different types in the same container
+- **Serialization Support**: Built-in serialization/deserialization for component persistence
+- **Flexible Storage**: Pluggable storage backends (in-memory, IPLD, custom)
+- **Thread Safety**: Components and storage are `Send + Sync`
+- **Zero Dependencies**: Minimal external dependencies for maximum compatibility
+- **Performance**: Optimized for fast component access and iteration
 
-## Usage
+## Quick Start
 
-### Basic Example
+### Basic Component Definition
 
 ```rust
-use cim_component::{Component, ComponentError, ComponentResult};
-use std::any::Any;
+use cim_component::{Component, ComponentStorage, InMemoryStorage};
+use serde::{Serialize, Deserialize};
+use uuid::Uuid;
 
-#[derive(Debug, Clone)]
-struct Health {
-    current: u32,
-    max: u32,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Position {
+    x: f32,
+    y: f32,
+    z: f32,
 }
 
-impl Component for Health {
-    fn as_any(&self) -> &dyn Any {
-        self
+impl Component for Position {
+    fn component_type() -> &'static str {
+        "Position"
     }
+}
 
-    fn clone_box(&self) -> Box<dyn Component> {
-        Box::new(self.clone())
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Velocity {
+    dx: f32,
+    dy: f32,
+    dz: f32,
+}
 
-    fn type_name(&self) -> &'static str {
-        "Health"
+impl Component for Velocity {
+    fn component_type() -> &'static str {
+        "Velocity"
     }
 }
 ```
 
-### Storing Components
+### Storing and Retrieving Components
 
 ```rust
-use std::any::TypeId;
-use std::collections::HashMap;
+// Create storage
+let storage = InMemoryStorage::new();
 
-struct Entity {
-    components: HashMap<TypeId, Box<dyn Component>>,
+// Create entity ID
+let entity_id = Uuid::new_v4();
+
+// Store components
+storage.store(entity_id, Position { x: 0.0, y: 0.0, z: 0.0 })?;
+storage.store(entity_id, Velocity { dx: 1.0, dy: 0.0, dz: 0.0 })?;
+
+// Retrieve components
+if let Some(pos) = storage.get::<Position>(entity_id)? {
+    println!("Position: {:?}", pos);
 }
 
-impl Entity {
-    fn add_component<C: Component + 'static>(&mut self, component: C) -> ComponentResult<()> {
-        let type_id = TypeId::of::<C>();
-        if self.components.contains_key(&type_id) {
-            return Err(ComponentError::AlreadyExists(component.type_name().to_string()));
-        }
-        self.components.insert(type_id, Box::new(component));
-        Ok(())
-    }
+// Query multiple components
+for (id, pos, vel) in storage.query::<(Position, Velocity)>()? {
+    println!("Entity {} at {:?} moving at {:?}", id, pos, vel);
+}
+```
 
-    fn get_component<C: Component + 'static>(&self) -> Option<&C> {
-        self.components
-            .get(&TypeId::of::<C>())
-            .and_then(|c| c.as_any().downcast_ref::<C>())
+### Custom Storage Backend
+
+```rust
+use cim_component::{ComponentStorage, StorageError};
+
+struct MyCustomStorage {
+    // Custom storage implementation
+}
+
+impl ComponentStorage for MyCustomStorage {
+    fn store<C: Component>(&self, id: Uuid, component: C) -> Result<(), StorageError> {
+        // Implementation
+    }
+    
+    fn get<C: Component>(&self, id: Uuid) -> Result<Option<C>, StorageError> {
+        // Implementation
+    }
+    
+    fn remove<C: Component>(&self, id: Uuid) -> Result<(), StorageError> {
+        // Implementation
     }
 }
 ```
 
-## Examples
+## Component Storage Strategies
 
-The crate includes three comprehensive examples demonstrating different usage patterns:
+```mermaid
+graph TD
+    subgraph "Storage Strategy Selection"
+        Decision{Component Type}
+        Decision --> |Small, Frequent| Dense[Dense Storage]
+        Decision --> |Large, Sparse| Sparse[Sparse Storage]
+        Decision --> |Persistent| IPLD[IPLD Storage]
+        Decision --> |Temporary| Memory[In-Memory]
+        
+        Dense --> |Array of Structs| AoS[AoS Layout]
+        Dense --> |Struct of Arrays| SoA[SoA Layout]
+        
+        Sparse --> |HashMap| Hash[Hash Storage]
+        Sparse --> |BTree| Tree[Tree Storage]
+    end
+    
+    style Decision fill:#ffd,stroke:#333,stroke-width:2px
+    style Dense fill:#dfd,stroke:#333,stroke-width:2px
+    style Sparse fill:#ddf,stroke:#333,stroke-width:2px
+```
 
-### 1. Basic Usage (`cargo run --example basic_usage`)
-Demonstrates fundamental component patterns using only standard library types:
-- Creating and implementing simple components
-- Component storage and retrieval
-- Error handling
-- Basic entity queries
+## API Reference
 
-### 2. Architecture Usage (`cargo run --example architecture_usage`)
-Shows how cim-component integrates with the wider CIM architecture:
-- Components from different domains (Graph, Identity, ConceptualSpaces)
-- Cross-domain entity composition
-- Component storage patterns used by domain modules
-- Query patterns for finding entities with specific components
-
-### 3. Advanced Patterns (`cargo run --example advanced_patterns`)
-Demonstrates sophisticated usage patterns:
-- Component relationships and dependencies
-- System-like processing of components
-- Event-driven component updates
-- Performance optimizations with indexing
-- Component validation at construction time
-
-## Integration with CIM
-
-`cim-component` serves as the foundation for data composition across all CIM domains:
-
-- **Graph Domain**: Uses components for node positions, metadata, and visual properties
-- **Identity Domain**: Attaches identity, roles, and permissions as components
-- **ConceptualSpaces Domain**: Represents semantic coordinates as components
-- **Workflow Domain**: Tracks workflow state and progress through components
-
-## Design Philosophy
-
-The component system follows these principles:
-
-1. **Data-Behavior Separation**: Components are pure data; systems provide behavior
-2. **Composition over Inheritance**: Build complex entities by combining simple components
-3. **Type Safety with Flexibility**: Compile-time safety with runtime composition
-4. **Domain Agnostic**: Components can represent any domain concept
-
-## Error Handling
-
-The crate provides comprehensive error types:
+### Core Traits
 
 ```rust
-pub enum ComponentError {
-    NotFound(String),
-    AlreadyExists(String),
-    TypeMismatch { expected: String, actual: String },
-    Custom(String),
+pub trait Component: Send + Sync + 'static {
+    fn component_type() -> &'static str where Self: Sized;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
+
+pub trait ComponentStorage: Send + Sync {
+    fn store<C: Component>(&self, id: Uuid, component: C) -> Result<(), StorageError>;
+    fn get<C: Component>(&self, id: Uuid) -> Result<Option<C>, StorageError>;
+    fn remove<C: Component>(&self, id: Uuid) -> Result<(), StorageError>;
+    fn query<Q: Query>(&self) -> Result<QueryIter<Q>, StorageError>;
+}
+```
+
+### Error Handling
+
+```mermaid
+graph TD
+    Error[ComponentError]
+    Error --> Storage[StorageError]
+    Error --> Type[TypeMismatch]
+    Error --> Serde[SerializationError]
+    
+    Storage --> NotFound[ComponentNotFound]
+    Storage --> Backend[BackendError]
+    
+    Type --> Cast[InvalidCast]
+    Type --> Unknown[UnknownType]
+    
+    Serde --> Encode[EncodingError]
+    Serde --> Decode[DecodingError]
+    
+    style Error fill:#fcc,stroke:#333,stroke-width:4px
 ```
 
 ## Performance Considerations
 
-- Components are stored in a `HashMap` with `TypeId` keys for O(1) access
-- The `clone_box` method enables efficient component duplication
-- Type erasure through `Box<dyn Component>` allows heterogeneous storage
+### Component Access Patterns
+
+```mermaid
+graph LR
+    subgraph "Access Patterns"
+        Random[Random Access] --> Hash[HashMap Storage]
+        Sequential[Sequential Access] --> Array[Array Storage]
+        Spatial[Spatial Queries] --> Tree[Spatial Tree]
+        Temporal[Time-based] --> Ring[Ring Buffer]
+    end
+    
+    subgraph "Optimization"
+        Hash --> O1[O(1) Lookup]
+        Array --> Cache[Cache Friendly]
+        Tree --> Spatial[Spatial Locality]
+        Ring --> Temporal[Temporal Locality]
+    end
+    
+    style Random fill:#ffd,stroke:#333,stroke-width:2px
+    style Sequential fill:#dfd,stroke:#333,stroke-width:2px
+    style Spatial fill:#ddf,stroke:#333,stroke-width:2px
+    style Temporal fill:#fdf,stroke:#333,stroke-width:2px
+```
+
+## Best Practices
+
+1. **Component Granularity**: Keep components small and focused on a single concern
+2. **Avoid Fat Components**: Split large components into multiple smaller ones
+3. **Use Value Semantics**: Components should be value types when possible
+4. **Minimize Dependencies**: Components should not depend on other components directly
+5. **Thread Safety**: Ensure custom components are `Send + Sync`
+
+## Examples
+
+See the `examples/` directory for complete examples:
+
+- `basic_component.rs` - Simple component definition and usage
+- `component_storage.rs` - Using different storage backends
+- `type_erased_storage.rs` - Storing mixed component types
+- `serialization.rs` - Component serialization/deserialization
+- `ecs_integration.rs` - Using with ECS patterns
+
+## Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test
+cargo test test_component_storage
+
+# Run benchmarks
+cargo bench
+```
+
+## Contributing
+
+Contributions are welcome! Please see the [Contributing Guide](../CONTRIBUTING.md) for details.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+Licensed under either of:
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](../LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](../LICENSE-MIT))
+
+at your option.

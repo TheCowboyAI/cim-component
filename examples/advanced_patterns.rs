@@ -17,6 +17,27 @@ use std::fmt::Debug;
 // ADVANCED COMPONENT PATTERNS
 // =============================================================================
 
+/// Position component for entities
+#[derive(Debug, Clone)]
+struct Position {
+    x: f64,
+    y: f64,
+}
+
+impl Component for Position {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    
+    fn clone_box(&self) -> Box<dyn Component> {
+        Box::new(self.clone())
+    }
+    
+    fn type_name(&self) -> &'static str {
+        "Position"
+    }
+}
+
 /// Marker component to indicate entity relationships
 #[derive(Debug, Clone)]
 struct Parent {
@@ -73,6 +94,16 @@ impl Temperature {
             Ok(Self { celsius })
         }
     }
+    
+    /// Convert to Fahrenheit
+    fn to_fahrenheit(&self) -> f64 {
+        self.celsius * 9.0 / 5.0 + 32.0
+    }
+    
+    /// Convert to Kelvin
+    fn to_kelvin(&self) -> f64 {
+        self.celsius + 273.15
+    }
 }
 
 impl Component for Temperature {
@@ -106,6 +137,12 @@ struct Entity {
     components: HashMap<TypeId, Box<dyn Component>>,
 }
 
+impl Entity {
+    fn get_id(&self) -> u64 {
+        self.id
+    }
+}
+
 impl World {
     fn new() -> Self {
         Self {
@@ -123,6 +160,7 @@ impl World {
             id,
             components: HashMap::new(),
         });
+        println!("Created entity with ID: {}", id);
         id
     }
 
@@ -133,7 +171,7 @@ impl World {
         component: C,
     ) -> ComponentResult<()> {
         let entity = self.entities.get_mut(&entity_id)
-            .ok_or_else(|| ComponentError::NotFound(format!("Entity {entity_id}")))?;
+            .ok_or_else(|| ComponentError::NotFound(format!("Entity {}", entity_id)))?;
 
         let type_id = TypeId::of::<C>();
         
@@ -160,9 +198,12 @@ impl World {
             entity_ids.iter()
                 .filter_map(|&id| {
                     self.entities.get(&id)
-                        .and_then(|e| e.components.get(&type_id))
-                        .and_then(|c| c.as_any().downcast_ref::<C>())
-                        .map(|c| (id, c))
+                        .and_then(|e| {
+                            let entity_id = e.get_id(); // Use entity's id method
+                            e.components.get(&type_id)
+                                .and_then(|c| c.as_any().downcast_ref::<C>())
+                                .map(|c| (entity_id, c))
+                        })
                 })
                 .collect()
         } else {
@@ -206,21 +247,12 @@ impl World {
 /// Example of a "system" that processes components
 fn movement_system(world: &World) {
     // Query all entities with both Position and Velocity
-    #[derive(Debug, Clone)]
-    struct Position { x: f64, y: f64 }
-    
-    impl Component for Position {
-        fn as_any(&self) -> &dyn Any { self }
-        fn clone_box(&self) -> Box<dyn Component> { Box::new(self.clone()) }
-        fn type_name(&self) -> &'static str { "Position" }
-    }
-
     let entities = world.query_components_2::<Position, Velocity>();
     
-    println!("Movement System: Processing {entities.len(} entities"));
+    println!("Movement System: Processing {} entities", entities.len());
     
     for (id, pos, vel) in entities {
-        println!("  Entity {id}: Moving from ({:.2}, {:.2}) by ({:.2}, {:.2})", pos.x, pos.y, vel.dx, vel.dy);
+        println!("  Entity {}: Moving from ({:.2}, {:.2}) by ({:.2}, {:.2})", id, pos.x, pos.y, vel.dx, vel.dy);
         // In a real system, we'd update the position here
     }
 }
@@ -229,10 +261,10 @@ fn movement_system(world: &World) {
 fn hierarchy_system(world: &World) {
     let parents = world.query_component::<Parent>();
     
-    println!("Hierarchy System: Found {parents.len(} child entities"));
+    println!("Hierarchy System: Found {} child entities", parents.len());
     
     for (child_id, parent) in parents {
-        println!("  Entity {child_id} is a child of Entity {parent.entity_id}");
+        println!("  Entity {} is a child of Entity {}", child_id, parent.entity_id);
     }
 }
 
@@ -277,6 +309,35 @@ impl EventDrivenWorld {
         
         Ok(())
     }
+    
+    fn remove_component_with_event<C: Component + 'static>(
+        &mut self,
+        entity_id: u64,
+    ) -> ComponentResult<()> {
+        let component_type = std::any::type_name::<C>().split("::").last().unwrap_or("Unknown");
+        
+        self.event_queue.push(ComponentEvent::Removed {
+            entity_id,
+            component_type,
+        });
+        
+        Ok(())
+    }
+    
+    fn modify_component_with_event<C: Component + 'static>(
+        &mut self,
+        entity_id: u64,
+        _component: C,
+    ) -> ComponentResult<()> {
+        let component_type = std::any::type_name::<C>().split("::").last().unwrap_or("Unknown");
+        
+        self.event_queue.push(ComponentEvent::Modified {
+            entity_id,
+            component_type,
+        });
+        
+        Ok(())
+    }
 
     fn process_events(&mut self) {
         let events = std::mem::take(&mut self.event_queue);
@@ -288,7 +349,16 @@ impl EventDrivenWorld {
                         handler(&event);
                     }
                 }
-                _ => {}
+                ComponentEvent::Removed { component_type, .. } => {
+                    if let Some(handler) = self.event_handlers.get(component_type) {
+                        handler(&event);
+                    }
+                }
+                ComponentEvent::Modified { component_type, .. } => {
+                    if let Some(handler) = self.event_handlers.get(component_type) {
+                        handler(&event);
+                    }
+                }
             }
         }
     }
@@ -310,15 +380,6 @@ fn main() {
     let child_id = world.create_entity();
     
     // Add components
-    #[derive(Debug, Clone)]
-    struct Position { x: f64, y: f64 }
-    
-    impl Component for Position {
-        fn as_any(&self) -> &dyn Any { self }
-        fn clone_box(&self) -> Box<dyn Component> { Box::new(self.clone()) }
-        fn type_name(&self) -> &'static str { "Position" }
-    }
-
     world.add_component(player_id, Position { x: 0.0, y: 0.0 }).unwrap();
     world.add_component(player_id, Velocity { dx: 1.0, dy: 0.5 }).unwrap();
     
@@ -338,30 +399,48 @@ fn main() {
     println!("\nComponent validation example:");
     match Temperature::new(100.0) {
         Ok(temp) => {
+            println!("  Temperature: {:.1}°C = {:.1}°F = {:.1}K", 
+                temp.celsius, temp.to_fahrenheit(), temp.to_kelvin());
             world.add_component(player_id, temp).unwrap();
             println!("  Added valid temperature to player");
         }
-        Err(e) => println!("  Error: {e}"),
+        Err(e) => println!("  Error: {}", e),
     }
     
     match Temperature::new(-300.0) {
         Ok(_) => println!("  Should not reach here"),
-        Err(e) => println!("  Validation prevented invalid temperature: {e}"),
+        Err(e) => println!("  Validation prevented invalid temperature: {}", e),
     }
     
     // 4. Event-driven example
     println!("\nEvent-driven pattern:");
     let mut event_world = EventDrivenWorld::new();
     
-    // Register event handler
+    // Register event handler for all event types
     event_world.event_handlers.insert("Position", Box::new(|event| {
-        if let ComponentEvent::Added { entity_id, .. } = event {
-            println!("  Position component added to entity {entity_id}");
+        match event {
+            ComponentEvent::Added { entity_id, .. } => {
+                println!("  Position component added to entity {}", entity_id);
+            }
+            ComponentEvent::Removed { entity_id, .. } => {
+                println!("  Position component removed from entity {}", entity_id);
+            }
+            ComponentEvent::Modified { entity_id, .. } => {
+                println!("  Position component modified on entity {}", entity_id);
+            }
         }
     }));
     
     let entity = event_world.world.create_entity();
     event_world.add_component_with_event(entity, Position { x: 0.0, y: 0.0 }).unwrap();
+    event_world.process_events();
+    
+    // Demonstrate modify event
+    event_world.modify_component_with_event(entity, Position { x: 10.0, y: 10.0 }).unwrap();
+    event_world.process_events();
+    
+    // Demonstrate remove event
+    event_world.remove_component_with_event::<Position>(entity).unwrap();
     event_world.process_events();
     
     // 5. Performance considerations
